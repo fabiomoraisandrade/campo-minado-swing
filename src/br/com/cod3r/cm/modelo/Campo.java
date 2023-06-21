@@ -13,11 +13,19 @@ public class Campo {
 	private boolean marcado = false; //Já foi detectado que tem uma mina e quer deixar marcado para não ser clicável
 	
 	private List<Campo> vizinhos = new ArrayList<>(); //Quando um campo é clicado, ele é expandido até ter minas vizinhas que não podem ser abertas e reveladas
-	
+	private List<CampoObservador> observadores = new ArrayList<>();
 	
 	Campo(int linha, int coluna) {
 		this.linha = linha;
 		this.coluna = coluna;
+	}
+	
+	public void registrarObservador(CampoObservador observador) {
+		observadores.add(observador);
+	}
+	
+	private void notificarObservadores(CampoEvento evento) {
+		observadores.stream().forEach(observador -> observador.eventoOcorreu(this, evento)); //O this é o próprio campo atual
 	}
 	
 	//Existem duas condições para determinar os campos vizinhos de um campo central. Se a soma da diferença absoluta entre 
@@ -45,17 +53,24 @@ public class Campo {
 	void alternarMarcacao() {
 		if (!aberto) {
 			marcado = !marcado;
+			
+			if(marcado) {
+				notificarObservadores(CampoEvento.MARCAR);
+			} else {
+				notificarObservadores(CampoEvento.DESMARCAR);
+			}
 		}
 	}
 	
 	boolean abrir() {
 		
 		if(!aberto && !marcado) {
-			aberto = true;
-			
 			if(minado) {
-				// TODO Implementar nova versão
+				notificarObservadores(CampoEvento.EXPLODIR);
+				return true;
 			}
+			
+			setAberto(true);
 			
 			if(vizinhancaSegura()) {
 				vizinhos.forEach(v -> v.abrir());
@@ -85,6 +100,10 @@ public class Campo {
 	
 	void setAberto(boolean aberto) {
 		this.aberto = aberto;
+		
+		if(aberto) {
+			notificarObservadores(CampoEvento.ABRIR);
+		}
 	}
 
 	public boolean isAberto() {
